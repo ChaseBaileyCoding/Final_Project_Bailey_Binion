@@ -68,6 +68,9 @@ static void ledc_init(void);
 void lcd_test(void *pvParameters);
 char scan_keypad(void);
 
+void open_door(void);
+void close_door(void);
+
 typedef enum{
     OPEN,
     CLOSED,
@@ -141,6 +144,7 @@ void app_main(void)
                         prevKey = NOPRESS;
                     }
                     else if(currentKey == '#'){
+                        prevKey = '#';
                         bool codeequal=true;
                         if(strlen(code) == strlen(passcode)){
                             for(int i = 0; i < strlen(code); i++){
@@ -177,7 +181,12 @@ void app_main(void)
             case OPEN:
                 char currentKey = scan_keypad();
                 if(currentKey == '#'){
-                    openState = CLOSING;
+                    if(prevKey != '#'){
+                        openState = CLOSING;
+                    }
+                }
+                else{
+                    prevKey = currentKey;
                 }
                 vTaskDelay(25/ portTICK_PERIOD_MS);
                 break;
@@ -185,17 +194,19 @@ void app_main(void)
                 open_door();
                 gpio_set_level(RED_LED, 0);
                 gpio_set_level(GREEN_LED, 1);
+                openState = OPEN;
                 break;
             case CLOSING:
                 close_door();
                 gpio_set_level(RED_LED, 1);
                 gpio_set_level(GREEN_LED, 0);
+                openState = CLOSED;
                 break;
         }
     }
 }
 
-void open_door(void){}
+
 
 void declare_items()
 {
@@ -271,4 +282,16 @@ char scan_keypad()
     }
     
     return '\0';
+}
+
+void open_door(){
+    gpio_set_level(RED_LED, 1);
+    gpio_set_level(GREEN_LED, 0);
+    // these are the two you should work on
+}
+
+void close_door(){
+    gpio_set_level(RED_LED, 1);
+    gpio_set_level(GREEN_LED, 0);
+    //
 }
