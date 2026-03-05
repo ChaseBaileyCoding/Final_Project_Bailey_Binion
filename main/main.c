@@ -70,7 +70,9 @@ char scan_keypad(void);
 
 typedef enum{
     OPEN,
-    CLOSED
+    CLOSED,
+    OPENING,
+    CLOSING
 } State_t;
 State_t openState = CLOSED;
 void declare_items(void);
@@ -90,11 +92,11 @@ void app_main(void)
     hd44780_gotoxy(&lcd, 0, 0);
     snprintf(code_str,  17, "Passcode:");
     hd44780_puts(&lcd, code_str);
+    gpio_set_level(RED_LED, 1);
+    gpio_set_level(GREEN_LED, 0);
     while(1){
         switch(openState) {
             case CLOSED:
-                gpio_set_level(RED_LED, 1);
-                gpio_set_level(GREEN_LED, 0);
                 if(timer > 0){
                     hd44780_clear(&lcd);
                     hd44780_gotoxy(&lcd, 0, 0);
@@ -151,8 +153,9 @@ void app_main(void)
                             codeequal = false;
                         }
                         if(codeequal){
-                            openState = OPEN;
+                            openState = OPENING;
                             printf("the safe is open \n");
+                            code[0] = '\0';
                         }
                         else{
                             attemptsFailed++;
@@ -172,9 +175,21 @@ void app_main(void)
                 }
                 break;
             case OPEN:
+                char currentKey = scan_keypad();
+                if(currentKey == '#'){
+                    openState = CLOSING;
+                }
+                vTaskDelay(25/ portTICK_PERIOD_MS);
+                break;
+            case OPENING:
+                open_door();
                 gpio_set_level(RED_LED, 0);
                 gpio_set_level(GREEN_LED, 1);
-                vTaskDelay(25/ portTICK_PERIOD_MS);
+                break;
+            case CLOSING:
+                close_door();
+                gpio_set_level(RED_LED, 1);
+                gpio_set_level(GREEN_LED, 0);
                 break;
         }
     }
