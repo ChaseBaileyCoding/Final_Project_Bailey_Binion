@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include <hd44780.h>
 #include <string.h>
+#include "esp_adc/adc_oneshot.h"
 
 #define LOOP_DELAY_MS           10      // Loop sampling time (ms)
 #define DEBOUNCE_TIME           40      // Debounce time (ms)
@@ -21,21 +22,29 @@
 
 #define NOPRESS                 '\0'    // NOPRESS character
 
-
-
+#define DELAY_MS        10                  // Loop delay (ms)
+#define NUM_SAMPLES     1000
 #define LEDC_TIMER              LEDC_TIMER_0
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
 #define LEDC_CHANNEL_N          LEDC_CHANNEL_0
-#define LEDC_CHANNEL_S          LEDC_CHANNEL_2
 #define LEDC_DUTY_RES           LEDC_TIMER_13_BIT
-#define LEDC_MOTOR_1            (9)
-#define LEDC_MOTOR_2            (10)        
+#define LEDC_MOTOR_1            (4)
+#define LEDC_MOTOR_2            (12)        
 #define LEDC_FREQUENCY          (50)
-#define GREEN_LED               GPIO_NUM_11
-#define RED_LED                 GPIO_NUM_12
+#define GREEN_LED               GPIO_NUM_9
+#define RED_LED                 GPIO_NUM_11
 #define BUZZER_GPIO             GPIO_NUM_5
+#define Channel_1 ADC2_CHANNEL_9   // GPIO13
+#define Channel_2 ADC2_CHANNEL_3   // GPIO14
+#define Channel_3 ADC2_CHANNEL_2   // GPIO20
+#define ADC_ATTEN       ADC_ATTEN_DB_12
+#define BITWIDTH        ADC_BITWIDTH_12
+adc_oneshot_unit_handle_t adc2_handle;   
+int comb1;
+int comb2;
+int comb3;
 
-int potentiometers[] =    {GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_21};
+int potentiometers[] =    {GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_20};
 
 int row_pins[] = {GPIO_NUM_3, GPIO_NUM_8, GPIO_NUM_18, GPIO_NUM_17};     // Pin numbers for rows
 int col_pins[] = {GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7, GPIO_NUM_6};   // Pin numbers for columns
@@ -63,7 +72,7 @@ hd44780_t lcd = {
 };
 
 
-
+static void ADC_Config(void);
 static void ledc_init(void);
 void lcd_test(void *pvParameters);
 char scan_keypad(void);
@@ -79,13 +88,14 @@ typedef enum{
 } State_t;
 State_t openState = CLOSED;
 void declare_items(void);
-
+static void ledc_init(void);
 
 void app_main(void)
 {
+    ADC_Config();
+    ledc_init();
     ESP_ERROR_CHECK(hd44780_init(&lcd));
     declare_items();
-    ledc_init();
     int timer = 0;
     char passcode[7] = "3C3218";
     char code[7] = "";
@@ -98,8 +108,29 @@ void app_main(void)
     gpio_set_level(RED_LED, 1);
     gpio_set_level(GREEN_LED, 0);
     while(1){
+    bool code1 = false;
+    bool code2 = false;
+    bool code3 = false;
         switch(openState) {
-            case CLOSED:
+            case CLOSED: 
+                int LEDC_DUTY = 614;
+                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_N, LEDC_DUTY);
+                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_N);
+                adc_oneshot_read
+                (adc2_handle, Channel_1, &comb1);
+                adc_oneshot_read
+                (adc2_handle, Channel_2, &comb2);
+                adc_oneshot_read
+                (adc2_handle, Channel_3, &comb3);
+                if (comb1 < 75){
+                    code1 = true;
+                }
+                if ((comb2 < 2050) && (comb2 > 1800)){
+                    code2 = true;
+                }
+                if (comb3 > 3975){
+                    code3 = true;
+                }
                 if(timer > 0){
                     hd44780_clear(&lcd);
                     hd44780_gotoxy(&lcd, 0, 0);
@@ -156,13 +187,14 @@ void app_main(void)
                         else{
                             codeequal = false;
                         }
-                        if(codeequal){
+                        if(codeequal && code1 && code2 && code3){
                             openState = OPENING;
                             printf("the safe is open \n");
                             code[0] = '\0';
                         }
                         else{
                             attemptsFailed++;
+                            printf("%d, %d, %d\n", comb1, comb2, comb3);
                             printf("incorrect code \n");
                             if(attemptsFailed < 3){
                                 timer = 1;
@@ -191,15 +223,26 @@ void app_main(void)
                 vTaskDelay(25/ portTICK_PERIOD_MS);
                 break;
             case OPENING:
+                hd44780_clear(&lcd);
+                hd44780_gotoxy(&lcd, 0, 0);
+                hd44780_puts(&lcd, "OPENING");
                 open_door();
-                gpio_set_level(RED_LED, 0);
-                gpio_set_level(GREEN_LED, 1);
+                vTaskDelay(500/ portTICK_PERIOD_MS);
+                hd44780_clear(&lcd);
+                hd44780_gotoxy(&lcd, 0, 0);
+                hd44780_puts(&lcd, "OPEN");
                 openState = OPEN;
                 break;
             case CLOSING:
+                hd44780_clear(&lcd);
+                hd44780_gotoxy(&lcd, 0, 0);
+                hd44780_puts(&lcd, "CLOSING");
                 close_door();
-                gpio_set_level(RED_LED, 1);
-                gpio_set_level(GREEN_LED, 0);
+                vTaskDelay(500/ portTICK_PERIOD_MS);
+                hd44780_gotoxy(&lcd, 0, 0);
+                attemptsFailed = 0;
+                snprintf(code_str,  17, "Passcode:");
+                hd44780_puts(&lcd, code_str);
                 openState = CLOSED;
                 break;
         }
@@ -248,22 +291,11 @@ static void ledc_init(void)
         .channel        = LEDC_CHANNEL_N,
         .timer_sel      = LEDC_TIMER,
         .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = LEDC_MOTOR_2,
+        .gpio_num       = LEDC_MOTOR_1,
         .duty           = 0, // Set duty to 0%
         .hpoint         = 0
     };
     ledc_channel_config(&ledc_channel);
-
-    ledc_channel_config_t ledc_channel_2 = {
-        .speed_mode     = LEDC_MODE,
-        .channel        = LEDC_CHANNEL_N,
-        .timer_sel      = LEDC_TIMER,
-        .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = LEDC_MOTOR_2,
-        .duty           = 0, // Set duty to 0%
-        .hpoint         = 0
-    };
-    ledc_channel_config(&ledc_channel_2);
 }
 
 
@@ -285,13 +317,35 @@ char scan_keypad()
 }
 
 void open_door(){
-    gpio_set_level(RED_LED, 1);
-    gpio_set_level(GREEN_LED, 0);
+    int LEDC_DUTY = 364;
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_N, LEDC_DUTY);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_N);
+    gpio_set_level(RED_LED, 0);
+    gpio_set_level(GREEN_LED, 1);
     // these are the two you should work on
 }
 
 void close_door(){
+    int LEDC_DUTY = 614;
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_N, LEDC_DUTY);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_N);
     gpio_set_level(RED_LED, 1);
     gpio_set_level(GREEN_LED, 0);
     //
+}
+
+void ADC_Config(void) {
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_2,
+    };
+    adc_oneshot_new_unit(&init_config1, &adc2_handle);
+
+    adc_oneshot_chan_cfg_t config = {
+        .atten = ADC_ATTEN,
+        .bitwidth = BITWIDTH
+    };
+
+    adc_oneshot_config_channel(adc2_handle, Channel_1, &config);
+    adc_oneshot_config_channel(adc2_handle, Channel_2, &config);
+    adc_oneshot_config_channel(adc2_handle, Channel_3, &config);
 }
