@@ -12,6 +12,8 @@
 #include <hd44780.h>
 #include <string.h>
 #include "esp_adc/adc_oneshot.h"
+#include <math.h>
+
 
 #define LOOP_DELAY_MS           10      // Loop sampling time (ms)
 #define DEBOUNCE_TIME           40      // Debounce time (ms)
@@ -44,7 +46,7 @@ int comb1;
 int comb2;
 int comb3;
 
-int potentiometers[] =    {GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_20};
+int potentiometers[] =    {GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_20};       // Pin numbers for the potentiometers
 
 int row_pins[] = {GPIO_NUM_3, GPIO_NUM_8, GPIO_NUM_18, GPIO_NUM_17};     // Pin numbers for rows
 int col_pins[] = {GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7, GPIO_NUM_6};   // Pin numbers for columns
@@ -56,7 +58,7 @@ char keypad_array[NROWS][NCOLS] = {   // Keypad layout
     {'*', '0', '#', 'D'}
 };
 
-hd44780_t lcd = {
+hd44780_t lcd = { // declares the values of all the ports on the LCD screen
     .write_cb = NULL,
     .font = HD44780_FONT_5X8,
     .lines = 2,
@@ -71,32 +73,32 @@ hd44780_t lcd = {
     }
 };
 
-
+// initializes all the functions above so they can be run below
 static void ADC_Config(void);
 static void ledc_init(void);
 void lcd_test(void *pvParameters);
 char scan_keypad(void);
-
 void open_door(void);
 void close_door(void);
+void declare_pins(void);
+static void ledc_init(void);
 
-typedef enum{
+typedef enum{ // defines the states for the safe
     OPEN,
     CLOSED,
     OPENING,
     CLOSING
 } State_t;
-State_t openState = CLOSED;
-void declare_items(void);
-static void ledc_init(void);
+State_t openState = CLOSED; // sets the initial state of openState
+
 
 void app_main(void)
 {
-    ADC_Config();
-    ledc_init();
-    ESP_ERROR_CHECK(hd44780_init(&lcd));
-    declare_items();
-    int timer = 0;
+    ADC_Config(); // configures the potentiometers
+    ledc_init(); // configures the motor
+    ESP_ERROR_CHECK(hd44780_init(&lcd));  // configures the LCD screen
+    declare_pins(); // configures all the remaining pins on the board
+    int timer = 0; // variables
     char passcode[7] = "3C3218";
     char code[7] = "";
     char prevKey = NOPRESS;
@@ -108,12 +110,12 @@ void app_main(void)
     gpio_set_level(RED_LED, 1);
     gpio_set_level(GREEN_LED, 0);
     while(1){
-    bool code1 = false;
+    bool code1 = false; // variables for determining the correctness of the dials
     bool code2 = false;
-    bool code3 = false;
+    bool code3 = false; 
         switch(openState) {
             case CLOSED: 
-                int LEDC_DUTY = 614;
+                int LEDC_DUTY = 614; // starting duty cycle
                 ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_N, LEDC_DUTY);
                 ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_N);
                 adc_oneshot_read
@@ -122,7 +124,7 @@ void app_main(void)
                 (adc2_handle, Channel_2, &comb2);
                 adc_oneshot_read
                 (adc2_handle, Channel_3, &comb3);
-                if (comb1 < 75){
+                if (comb1 < 75){ // checking the correct values of the dials
                     code1 = true;
                 }
                 if ((comb2 < 2050) && (comb2 > 1800)){
@@ -131,11 +133,10 @@ void app_main(void)
                 if (comb3 > 3975){
                     code3 = true;
                 }
-                if(timer > 0){
+                if(timer > 0){ // stalls the user when the timer is set to above 0
                     hd44780_clear(&lcd);
                     hd44780_gotoxy(&lcd, 0, 0);
-                    char time[15];
-                    //strcat(time, timer);
+                    char time[15]; // had to declare like this so it could print
                     snprintf(time,  22, "Time left: %d", timer);
                     hd44780_puts(&lcd, time);
                     timer--;
@@ -151,7 +152,7 @@ void app_main(void)
                         hd44780_clear(&lcd);
                     }
                 }
-                if(timer == 0){
+                if(timer == 0){ // allows the user to input a passcode
                     char currentKey = scan_keypad();
                     if(currentKey != NOPRESS && currentKey != prevKey && currentKey != '#'){
                         int len = strlen(code);
@@ -162,37 +163,35 @@ void app_main(void)
                         if(currentKey == '*'){
                             code[0] = '\0';
                         }
-                        //snprintf(code, 7, "%s %c", code, currentKey);
                         prevKey = currentKey;
-
                         hd44780_clear(&lcd);
                         hd44780_gotoxy(&lcd, 0, 0);
                         snprintf(code_str,  17, "Passcode: %s", code);
-                        hd44780_puts(&lcd, code_str);
-                        printf("%s \n", code_str);
+                        hd44780_puts(&lcd, code_str); //prints the code to the LCD
+                        printf("%s \n", code_str); //prints the code to the terminal
                     }
-                    else if(currentKey == NOPRESS){
+                    else if(currentKey == NOPRESS){ // used so the user holding a button down doesnt repeat the button being pressed
                         prevKey = NOPRESS;
                     }
-                    else if(currentKey == '#'){
-                        prevKey = '#';
+                    else if(currentKey == '#'){ //checks for enter key
+                        prevKey = '#'; 
                         bool codeequal=true;
-                        if(strlen(code) == strlen(passcode)){
+                        if(strlen(code) == strlen(passcode)){ //checks if the code is equal and also the length of the code
                             for(int i = 0; i < strlen(code); i++){
                                 if(code[i] != passcode[i]){
                                     codeequal = false;
                                 }
                             }
                         }
-                        else{
+                        else{ // if code isnt same length it immediately wrong
                             codeequal = false;
                         }
-                        if(codeequal && code1 && code2 && code3){
+                        if(codeequal && code1 && code2 && code3){ //opens the lock if the code is correct
                             openState = OPENING;
                             printf("the safe is open \n");
                             code[0] = '\0';
                         }
-                        else{
+                        else{ // if the code is incorrect then it returns the code
                             attemptsFailed++;
                             printf("%d, %d, %d\n", comb1, comb2, comb3);
                             printf("incorrect code \n");
@@ -201,16 +200,15 @@ void app_main(void)
                                 gpio_set_level(BUZZER_GPIO, 1);
                             }
                             else{
-                                timer = 60 * (attemptsFailed-2);
+                                timer = 60* pow(2, (attemptsFailed-2));
                                 gpio_set_level(BUZZER_GPIO, 1);
                             }
                         }
-                        //code[0] = '\0';
                     }
                     vTaskDelay(25/ portTICK_PERIOD_MS);
                 }
                 break;
-            case OPEN:
+            case OPEN: // waits for the close button to be pressed and then enters the closing phase
                 char currentKey = scan_keypad();
                 if(currentKey == '#'){
                     if(prevKey != '#'){
@@ -222,7 +220,7 @@ void app_main(void)
                 }
                 vTaskDelay(25/ portTICK_PERIOD_MS);
                 break;
-            case OPENING:
+            case OPENING: //opens the lock and turns on the green LED 
                 hd44780_clear(&lcd);
                 hd44780_gotoxy(&lcd, 0, 0);
                 hd44780_puts(&lcd, "OPENING");
@@ -233,7 +231,7 @@ void app_main(void)
                 hd44780_puts(&lcd, "OPEN");
                 openState = OPEN;
                 break;
-            case CLOSING:
+            case CLOSING: //closes the lock and turns on the red LED, as well as resetting the attempt counter 
                 hd44780_clear(&lcd);
                 hd44780_gotoxy(&lcd, 0, 0);
                 hd44780_puts(&lcd, "CLOSING");
@@ -251,7 +249,7 @@ void app_main(void)
 
 
 
-void declare_items()
+void declare_pins()
 {
     for (int i = 0; i < sizeof(row_pins)/sizeof(row_pins[0]); i++){
         gpio_reset_pin(row_pins[i]);
