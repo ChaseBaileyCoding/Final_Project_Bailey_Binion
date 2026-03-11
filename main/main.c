@@ -46,7 +46,6 @@ int comb1;
 int comb2;
 int comb3;
 
-int potentiometers[] =    {GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_20};       // Pin numbers for the potentiometers
 
 int row_pins[] = {GPIO_NUM_3, GPIO_NUM_8, GPIO_NUM_18, GPIO_NUM_17};     // Pin numbers for rows
 int col_pins[] = {GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7, GPIO_NUM_6};   // Pin numbers for columns
@@ -297,7 +296,7 @@ static void ledc_init(void)
 }
 
 
-char scan_keypad()
+char scan_keypad() // function to get the current value of the keypad
 {
     for(int i = 0; i < sizeof(row_pins)/sizeof(row_pins[0]); i++){
         gpio_set_level(row_pins[i], 0);
@@ -314,25 +313,23 @@ char scan_keypad()
     return '\0';
 }
 
-void open_door(){
+void open_door(){ // function for opening the door
     int LEDC_DUTY = 364;
     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_N, LEDC_DUTY);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_N);
     gpio_set_level(RED_LED, 0);
     gpio_set_level(GREEN_LED, 1);
-    // these are the two you should work on
 }
 
-void close_door(){
+void close_door(){ // function for closing the door
     int LEDC_DUTY = 614;
     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_N, LEDC_DUTY);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_N);
     gpio_set_level(RED_LED, 1);
     gpio_set_level(GREEN_LED, 0);
-    //
 }
 
-void ADC_Config(void) {
+void ADC_Config(void) { // configures the ADC ports for the potentiometers
     adc_oneshot_unit_init_cfg_t init_config1 = {
         .unit_id = ADC_UNIT_2,
     };
