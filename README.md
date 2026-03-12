@@ -1,7 +1,7 @@
 Team Members: Aaron Binion, Chase Bailey 
 
 
-Summary
+# Summary
 
    Our project, The Safe Safe, aims to safely and portably lock items in a drawer-like safe with two factor authentication and security lockouts. 
 Hardware includes a servo motor, a green and red LED, a ESP32-S3 microcontroller, breadboard, LCD screen with contrast potentiometer, a keypad, three combination potentiometers, 
@@ -14,7 +14,7 @@ The timer should double its length after subsequent failed attempts, and the use
 
 
 
-Specification
+# Specification
 
 Successfully unlocking the safe: 
 - Keypad (KP) presses updates the LCD screen
