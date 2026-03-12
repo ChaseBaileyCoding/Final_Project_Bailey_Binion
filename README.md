@@ -75,7 +75,7 @@ Limited attempts and lockout feature (
 Test Process 
 
 Input: KP
-1. # is pressed with an incorrect code and / or incorrect potentiometer positions once, twice, three, and four times. 
+1. "#" is pressed with an incorrect code and / or incorrect potentiometer positions once, twice, three, and four times. 
 2. An incorrect code is imputed twice, the safe is opened, then closed, then an incorrect code is attempted again
 3. The display shows “Timer: _”
 
