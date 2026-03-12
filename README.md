@@ -1,4 +1,4 @@
-Team Members: Aaron Binion, Chase Bailey 
+# Team Members: Aaron Binion, Chase Bailey 
 
 
 # Summary
@@ -13,8 +13,9 @@ Each failed unlock attempt inhibits a buzzer to sound and a lockout timer to be 
 The timer should double its length after subsequent failed attempts, and the user cannot alter any outputs of the safe while the LCD shows a timer counting down. 
 
 
+# Summary of Testing Results
 
-# Specification
+Specification
 
 Successfully unlocking the safe: 
 - Keypad (KP) presses updates the LCD screen
