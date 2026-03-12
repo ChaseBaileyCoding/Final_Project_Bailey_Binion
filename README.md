@@ -17,14 +17,14 @@ The timer should double its length after subsequent failed attempts, and the use
 Specification
 
 Successfully unlocking the safe: 
-- Keypad (KP) presses updates the LCD screen.
-- Input the correct passcode (3C3218, code max is 6 characters). 
+- Keypad (KP) presses updates the LCD screen
+- Input the correct passcode (3C3218, code max is 6 characters)
 - Passcode is visible on the LCD screen 
 - Press # to enter code and * to clear the passcode 
 - LCD screen goes from displaying “Passcode: 3C3218” to “OPENING”, to “OPEN” after correct code is entered
 - Have the potentiometers (P1, P2, P3) in the correct position (bottom left, middle, bottom right)
 - Servo motor turns and unlocks the safe 
-- Green LED turns on & red LED turns off, 
+- Green LED turns on & red LED turns off
 - Safe can be pulled out of drawer
   
 Test Process
@@ -64,26 +64,26 @@ Specification
 
 Security functions: 
 Limited attempts and lockout feature (
-- After an incorrect code or potentiometer positions. 
-- The LCD shows“Timer: _” with _ being the delay before subsequent entry attempts in seconds.
-- The delay should be “1” until the third failed attempt, where a delay of “60” is implemented. 
-- Each failed attempt after three doubles the “60” delay. 
-- With each failed attempt a buzzer will sound.
+- After an incorrect code or potentiometer positions
+- The LCD shows“Timer: _” with _ being the delay before subsequent entry attempts in seconds
+- The delay should be “1” until the third failed attempt, where a delay of “60” is implemented
+- Each failed attempt after three doubles the “60” delay
+- With each failed attempt a buzzer will sound
 - The inputted code stays on the screen after failed attempts and lockout, and the failed attempts counter resets after the safe is successfully unlocked
 - While the timer is displayed, no user inputs alter any outputs of the safe or unlock it)
 
 Test Process 
 
 Input: KP
-1. "#" is pressed with an incorrect code and / or incorrect potentiometer positions once, twice, three, and four times. 
+1. "#" is pressed with an incorrect code and / or incorrect potentiometer positions once, twice, three, and four times
 2. An incorrect code is imputed twice, the safe is opened, then closed, then an incorrect code is attempted again
-3. The display shows “Timer: _”
+3. The display shows “Timer: _”, with _ being an integer timer in seonds
 
 Results
 
 1. A buzzer sounds for each failed attempt. For the first two attempts, “Timer: 1” is displayed, on the third “Timer: 60” is displayed, and on the fourth “Timer: 120” is displayed.
-The delay integer decrements every second on the LCD, and reverts back to displaying “Passcode: ” with the previously entered code. 
-2. The LCD screen displays “Timer: 1”, proving that the number of failed attempts resets after a successful attempt and relocking of the safe. 
+The delay integer decrements every second on the LCD, and reverts back to displaying “Passcode: ” with the previously entered code
+2. The LCD screen displays “Timer: 1”, proving that the number of failed attempts resets after a successful attempt and relocking of the safe
 3. No user inputs can alter the LCD display, buzzer, motor, or LEDs
 
 
