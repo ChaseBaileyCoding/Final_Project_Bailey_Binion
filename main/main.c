@@ -30,8 +30,7 @@
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
 #define LEDC_CHANNEL_N          LEDC_CHANNEL_0
 #define LEDC_DUTY_RES           LEDC_TIMER_13_BIT
-#define LEDC_MOTOR_1            (4)
-#define LEDC_MOTOR_2            (12)        
+#define LEDC_MOTOR_1            (4)    
 #define LEDC_FREQUENCY          (50)
 #define GREEN_LED               GPIO_NUM_9
 #define RED_LED                 GPIO_NUM_11
